@@ -88,18 +88,34 @@ function AuthProvider({ children }: AuthProviderData) {
         authUrl
       })) as AuthorizationResponse
       // verify if startAsync response.type equals "success" and response.params.error differs from "access_denied"
-      // if true, do the following:
-      // verify if startAsync response.params.state differs from STATE
-      // if true, do the following:
-      // throw an error with message "Invalid state value"
-      // add access_token to request's authorization header
-      // call Twitch API's users route
-      // set user state with response from Twitch API's route "/users"
-      // set userToken state with response's access_token from startAsync
+      if (type === 'success') {
+        // if true, do the following:
+        // verify if startAsync response.params.state differs from STATE
+        if (params.state !== STATE) {
+          // if true, do the following:
+          // throw an error with message "Invalid state value"
+          throw new Error('Invalid state value')
+        }
+        // add access_token to request's authorization header
+        api.defaults.headers.authorization = `Bearer ${params.access_token}`
+        // call Twitch API's users route
+        const userResponse = await api.get('/users')
+        // set user state with response from Twitch API's route "/users"
+        setUser({
+          id: userResponse.data.id,
+          display_name: userResponse.data.display_name,
+          email: userResponse.data.email,
+          profile_image_url: userResponse.data.profile_image_url
+        } as User)
+        // set userToken state with response's access_token from startAsync
+        setUserToken(params.access_token)
+      }
     } catch (error) {
       // throw an error
+      throw new Error(error as string)
     } finally {
       // set isLoggingIn to false
+      setIsLoggingIn(false)
     }
   }
 
