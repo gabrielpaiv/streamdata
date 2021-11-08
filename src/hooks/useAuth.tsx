@@ -29,15 +29,6 @@ interface AuthProviderData {
   children: ReactNode
 }
 
-type AuthorizationResponse = {
-  params: {
-    access_token: string
-    error?: string
-    state?: string
-  }
-  type: string
-}
-
 const AuthContext = createContext({} as AuthContextData)
 
 const twitchEndpoints = {
@@ -57,9 +48,9 @@ function AuthProvider({ children }: AuthProviderData) {
     try {
       setIsLoggingIn(true)
 
-      const REDIRECT_URI = makeRedirectUri()
+      const REDIRECT_URI = makeRedirectUri({ useProxy: true })
       const RESPONSE_TYPE = 'token'
-      const SCOPE = 'openid user:read:email user:read:follows'
+      const SCOPE = encodeURI('openid user:read:email user:read:follows')
       const FORCE_VERIFY = true
       const STATE = generateRandom(30)
       const authUrl =
@@ -71,25 +62,25 @@ function AuthProvider({ children }: AuthProviderData) {
         `&force_verify=${FORCE_VERIFY}` +
         `&state=${STATE}`
 
-      const { type, params } = (await startAsync({
+      const authResponse = await startAsync({
         authUrl
-      })) as AuthorizationResponse
+      })
 
-      if (type === 'success') {
-        if (params.state !== STATE) {
+      if (authResponse.type === 'success') {
+        if (authResponse.params.state !== STATE) {
           throw new Error('Invalid state value')
         }
 
-        api.defaults.headers.authorization = `Bearer ${params.access_token}`
+        api.defaults.headers.authorization = `Bearer ${authResponse.params.access_token}`
         const userResponse = await api.get('/users')
 
         setUser({
-          id: userResponse.data.id,
-          display_name: userResponse.data.display_name,
-          email: userResponse.data.email,
-          profile_image_url: userResponse.data.profile_image_url
+          id: userResponse.data.data[0].id,
+          display_name: userResponse.data.data[0].display_name,
+          email: userResponse.data.data[0].email,
+          profile_image_url: userResponse.data.data[0].profile_image_url
         } as User)
-        setUserToken(params.access_token)
+        setUserToken(authResponse.params.access_token)
       }
     } catch (error) {
       throw new Error(error as string)
