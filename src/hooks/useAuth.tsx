@@ -54,10 +54,6 @@ function AuthProvider({ children }: AuthProviderData) {
   // get CLIENT_ID from environment variables
   const { CLIENT_ID } = process.env
 
-  useEffect(() => {
-    api.defaults.headers['Client-Id'] = CLIENT_ID
-  }, [])
-
   async function signIn() {
     try {
       // set isLoggingIn to true
@@ -122,18 +118,28 @@ function AuthProvider({ children }: AuthProviderData) {
   async function signOut() {
     try {
       // set isLoggingOut to true
+      setIsLoggingOut(true)
       // call revokeAsync with access_token, client_id and twitchEndpoint revocation
+      await revokeAsync(
+        { token: userToken, clientId: CLIENT_ID },
+        { revocationEndpoint: twitchEndpoints.revocation }
+      )
     } catch (error) {
     } finally {
       // set user state to an empty User object
+      setUser({} as User)
       // set userToken state to an empty string
+      setUserToken('')
       // remove "access_token" from request's authorization header
+      delete api.defaults.headers.authorization
       // set isLoggingOut to false
+      setIsLoggingOut(false)
     }
   }
 
   useEffect(() => {
     // add client_id to request's "Client-Id" header
+    api.defaults.headers['Client-Id'] = CLIENT_ID
   }, [])
 
   return (
